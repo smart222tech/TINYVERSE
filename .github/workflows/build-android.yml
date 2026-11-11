@@ -36,7 +36,7 @@ jobs:
           test -x "$SDKMANAGER"
           set +o pipefail
           yes | "$SDKMANAGER" --sdk_root="$ANDROID_HOME" --licenses
-          yes | "$SDKMANAGER" --sdk_root="$ANDROID_HOME" "platform-tools" "platforms;android-34" "build-tools;34.0.0" "platforms;android-35" "build-tools;35.0.1"
+          yes | "$SDKMANAGER" --sdk_root="$ANDROID_HOME" "platform-tools" "platforms;android-34" "build-tools;34.0.0" "platforms;android-35" "build-tools;35.0.1" "ndk;23.2.8568313" "cmake;3.10.2.4988404"
           set -o pipefail
 
           mkdir -p "$HOME/.local/share/godot/export_templates/4.4.1.stable"
