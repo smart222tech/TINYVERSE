@@ -46,7 +46,7 @@ jobs:
 
           mkdir -p "$HOME/.android" "$HOME/.config/godot"
           keytool -genkeypair -v -keystore "$HOME/.android/debug.keystore" -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
-          cat > "$HOME/.config/godot/editor_settings-4.tres" <<EOF
+          cat > "$HOME/.config/godot/editor_settings-4.4.tres" <<EOF
           [gd_resource type="EditorSettings" format=3]
 
           [resource]
@@ -57,8 +57,8 @@ jobs:
           export/android/debug_keystore_pass = "android"
           EOF
           echo "=== Godot Android editor settings ==="
-          test -s "$HOME/.config/godot/editor_settings-4.tres"
-          cat "$HOME/.config/godot/editor_settings-4.tres"
+          test -s "$HOME/.config/godot/editor_settings-4.4.tres"
+          cat "$HOME/.config/godot/editor_settings-4.4.tres"
           echo "=== Android toolchain ==="
           test -x "$JAVA_HOME/bin/java"
           test -x "$ANDROID_HOME/platform-tools/adb"
