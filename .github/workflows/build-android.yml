@@ -1,0 +1,38 @@
+name: Build TINYVERSE Android APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths:
+      - '**.gd'
+      - '**.tscn'
+      - '**.godot'
+      - 'export_presets.cfg'
+      - '.github/workflows/build-android.yml'
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+    container:
+      image: barichello/godot-ci:4.4.1
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Prepare build directory
+        run: mkdir -p build
+
+      - name: Validate and import project
+        run: godot --headless --editor --path . --quit
+
+      - name: Export Android APK
+        run: godot --headless --path . --export-debug "Android" build/TINYVERSE-debug.apk
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: TINYVERSE-Android-debug
+          path: build/TINYVERSE-debug.apk
+          if-no-files-found: error
+          retention-days: 14
