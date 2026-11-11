@@ -36,7 +36,7 @@ jobs:
           test -x "$SDKMANAGER"
           set +o pipefail
           yes | "$SDKMANAGER" --sdk_root="$ANDROID_HOME" --licenses
-          yes | "$SDKMANAGER" --sdk_root="$ANDROID_HOME" "platform-tools" "platforms;android-35" "build-tools;35.0.1"
+          yes | "$SDKMANAGER" --sdk_root="$ANDROID_HOME" "platform-tools" "platforms;android-34" "build-tools;34.0.0" "platforms;android-35" "build-tools;35.0.1"
           set -o pipefail
 
           mkdir -p "$HOME/.local/share/godot/export_templates/4.4.1.stable"
@@ -67,6 +67,10 @@ jobs:
         run: test -f export_presets.cfg && grep -q '^name="Android"' export_presets.cfg
 
       - name: Export Android APK
+        env:
+          GODOT_ANDROID_KEYSTORE_DEBUG_PATH: /github/home/.android/debug.keystore
+          GODOT_ANDROID_KEYSTORE_DEBUG_USER: androiddebugkey
+          GODOT_ANDROID_KEYSTORE_DEBUG_PASSWORD: android
         run: godot --headless --path . --export-debug "Android" build/TINYVERSE-debug.apk
 
       - name: Upload APK
