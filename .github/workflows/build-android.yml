@@ -56,6 +56,13 @@ jobs:
           export/android/debug_keystore_user = "androiddebugkey"
           export/android/debug_keystore_pass = "android"
           EOF
+          echo "=== Godot Android editor settings ==="
+          test -s "$HOME/.config/godot/editor_settings-4.tres"
+          cat "$HOME/.config/godot/editor_settings-4.tres"
+          echo "=== Android toolchain ==="
+          test -x "$JAVA_HOME/bin/java"
+          test -x "$ANDROID_HOME/platform-tools/adb"
+          test -f "$HOME/.android/debug.keystore"
 
       - name: Prepare build directory
         run: mkdir -p build
@@ -71,7 +78,7 @@ jobs:
           GODOT_ANDROID_KEYSTORE_DEBUG_PATH: /github/home/.android/debug.keystore
           GODOT_ANDROID_KEYSTORE_DEBUG_USER: androiddebugkey
           GODOT_ANDROID_KEYSTORE_DEBUG_PASSWORD: android
-        run: godot --headless --path . --export-debug "Android" build/TINYVERSE-debug.apk
+        run: godot --headless --verbose --path . --export-debug "Android" build/TINYVERSE-debug.apk
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
