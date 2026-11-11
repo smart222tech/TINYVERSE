@@ -34,12 +34,14 @@ jobs:
             SDKMANAGER="$(find "$ANDROID_HOME" -name sdkmanager -type f | head -n 1)"
           fi
           test -x "$SDKMANAGER"
+          set +o pipefail
           yes | "$SDKMANAGER" --sdk_root="$ANDROID_HOME" --licenses
           yes | "$SDKMANAGER" --sdk_root="$ANDROID_HOME" "platform-tools" "platforms;android-35" "build-tools;35.0.1"
+          set -o pipefail
 
           mkdir -p "$HOME/.local/share/godot/export_templates/4.4.1.stable"
           curl -fsSL "https://github.com/godotengine/godot/releases/download/4.4.1-stable/Godot_v4.4.1-stable_export_templates.tpz" -o /tmp/godot-templates.tpz
-          unzip -o /tmp/godot-templates.tpz -d "$HOME/.local/share/godot/export_templates/4.4.1.stable"
+          unzip -o -j /tmp/godot-templates.tpz -d "$HOME/.local/share/godot/export_templates/4.4.1.stable"
           test -f "$HOME/.local/share/godot/export_templates/4.4.1.stable/android_debug.apk"
 
           mkdir -p "$HOME/.android" "$HOME/.config/godot"
