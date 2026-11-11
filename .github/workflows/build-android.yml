@@ -26,6 +26,9 @@ jobs:
       - name: Validate and import project
         run: godot --headless --editor --path . --quit
 
+      - name: Verify Android export preset
+        run: test -f export_presets.cfg && grep -q '^name="Android"' export_presets.cfg
+
       - name: Export Android APK
         run: godot --headless --path . --export-debug "Android" build/TINYVERSE-debug.apk
 
