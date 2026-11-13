@@ -291,7 +291,7 @@ func _input(event: InputEvent) -> void:
 		if event.pressed:
 			last_touch_x = event.position.x
 		elif last_touch_x >= 0.0:
-			var dx := event.position.x - last_touch_x
+			var dx: float = float(event.position.x) - last_touch_x
 			if absf(dx) > 45.0:
 				_change_lane(1 if dx > 0.0 else -1)
 			last_touch_x = -1.0
@@ -299,7 +299,7 @@ func _input(event: InputEvent) -> void:
 		if event.pressed:
 			last_touch_x = event.position.x
 		elif last_touch_x >= 0.0:
-			var dx := event.position.x - last_touch_x
+			var dx: float = float(event.position.x) - last_touch_x
 			if absf(dx) > 45.0:
 				_change_lane(1 if dx > 0.0 else -1)
 			last_touch_x = -1.0
