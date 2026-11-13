@@ -53,8 +53,10 @@ func _process(delta: float) -> void:
 	for i in range(particles.size() - 1, -1, -1):
 		var particle: Dictionary = particles[i]
 		particle["life"] = float(particle["life"]) - delta
-		particle["pos"] = Vector2(particle["pos"]) + Vector2(particle["velocity"]) * delta
-		particle["velocity"] = Vector2(particle["velocity"]) + Vector2(0, 360.0 * delta)
+		var particle_pos: Vector2 = particle["pos"]
+		var particle_velocity: Vector2 = particle["velocity"]
+		particle["pos"] = particle_pos + particle_velocity * delta
+		particle["velocity"] = particle_velocity + Vector2(0, 360.0 * delta)
 		if float(particle["life"]) <= 0.0:
 			particles.remove_at(i)
 		else:
@@ -473,8 +475,9 @@ func _draw() -> void:
 	# Collection sparkles
 	for particle in particles:
 		var particle_color: Color = particle["color"]
+		var particle_pos: Vector2 = particle["pos"]
 		particle_color.a *= clampf(float(particle["life"]) / float(particle["max_life"]), 0.0, 1.0)
-		draw_circle(Vector2(particle["pos"]), float(particle["size"]), particle_color)
+		draw_circle(particle_pos, float(particle["size"]), particle_color)
 	# Player shadow and runner
 	if game_started or game_over:
 		draw_ellipse(Vector2(player_x, PLAYER_Y + 62), Vector2(58, 17), Color(0,0,0,0.18))
