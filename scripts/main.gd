@@ -550,7 +550,7 @@ func _draw_crystal(p: Vector2) -> void:
 	draw_circle(p+Vector2(0,25),14,Color(0.1,0.3,0.4,0.12))
 
 func _draw_egg(center: Vector2) -> void:
-	draw_ellipse(center+Vector2(0,24),Vector2(34,9),Color(0.12,0.35,0.38,0.2))
+	_draw_ellipse(center+Vector2(0,24),Vector2(34,9),Color(0.12,0.35,0.38,0.2))
 	draw_circle(center,31,Color("#fff4cf"))
 	draw_colored_polygon(PackedVector2Array([center+Vector2(0,-42),center+Vector2(24,-12),center+Vector2(28,18),center+Vector2(0,36),center+Vector2(-28,18),center+Vector2(-24,-12)]),Color("#fff2cf"))
 	draw_circle(center+Vector2(-9,-2),5,Color("#f4a6cf"))
@@ -559,7 +559,7 @@ func _draw_egg(center: Vector2) -> void:
 
 func _draw_creature(center: Vector2) -> void:
 	var c := center+Vector2(0,sin(mood_time*3.0)*6.0)
-	draw_ellipse(c+Vector2(0,50),Vector2(52,13),Color(0.12,0.35,0.38,0.2))
+	_draw_ellipse(c+Vector2(0,50),Vector2(52,13),Color(0.12,0.35,0.38,0.2))
 	draw_colored_polygon(PackedVector2Array([c+Vector2(-34,-35),c+Vector2(-48,-78),c+Vector2(-8,-56)]),Color("#aa8cff"))
 	draw_colored_polygon(PackedVector2Array([c+Vector2(34,-35),c+Vector2(48,-78),c+Vector2(8,-56)]),Color("#aa8cff"))
 	draw_circle(c,47,Color("#aa8cff"))
@@ -576,7 +576,7 @@ func _draw_creature(center: Vector2) -> void:
 func _draw_player(p: Vector2) -> void:
 	var bob := sin(mood_time*8.0)*2.5 if move_vector.length() > 0.0 else 0.0
 	var c := p+Vector2(0,bob)
-	draw_ellipse(c+Vector2(0,25),Vector2(20,7),Color(0.12,0.35,0.38,0.2))
+	_draw_ellipse(c+Vector2(0,25),Vector2(20,7),Color(0.12,0.35,0.38,0.2))
 	draw_circle(c+Vector2(0,-7),17,Color("#ffd2a6"))
 	draw_colored_polygon(PackedVector2Array([c+Vector2(-16,-12),c+Vector2(-12,-29),c+Vector2(10,-29),c+Vector2(17,-11)]),Color("#4b5f9e"))
 	draw_rect(Rect2(c+Vector2(-14,8),Vector2(28,28)),Color("#ffb45e"))
@@ -584,7 +584,7 @@ func _draw_player(p: Vector2) -> void:
 	draw_circle(c+Vector2(6,-8),2.5,Color("#293653"))
 	draw_arc(c+Vector2(0,-2),5,0.2,PI-0.2,10,Color("#a65c57"),2)
 
-func _draw_ellipse(center: Vector2, radius: Vector2, color: Color) -> void:
+func __draw_ellipse(center: Vector2, radius: Vector2, color: Color) -> void:
 	var points := PackedVector2Array()
 	for i in range(32):
 		var a := TAU*float(i)/32.0
