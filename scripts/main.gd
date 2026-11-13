@@ -460,7 +460,7 @@ func _build_audio() -> void:
 	samples.resize(sample_count * 2)
 	for i in range(sample_count):
 		var t := float(i) / 22050.0
-		var note := melody[int(t) % melody.size()]
+		var note: float = float(melody[int(t) % melody.size()])
 		var envelope := 0.5 + 0.5 * sin(PI * fposmod(t, 1.0))
 		var value := sin(TAU * note * t) * 0.11 * envelope + sin(TAU * note * 0.5 * t) * 0.035
 		samples.encode_s16(i * 2, int(clampf(value, -1.0, 1.0) * 32767.0))
