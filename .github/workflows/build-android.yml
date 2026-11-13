@@ -1,4 +1,5 @@
 name: Build TINYVERSE Android APK
+# Android export includes ARMv7, ARM64 and x86_64 ABIs from export_presets.cfg.
 
 on:
   workflow_dispatch:
