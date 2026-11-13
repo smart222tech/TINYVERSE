@@ -37,14 +37,28 @@ var left_button: Button
 var right_button: Button
 var start_button: Button
 var restart_button: Button
+var music_player: AudioStreamPlayer
+var sfx_player: AudioStreamPlayer
+var sfx_streams: Dictionary = {}
+var particles: Array[Dictionary] = []
 
 func _ready() -> void:
 	rng.randomize()
+	_build_audio()
 	_build_ui()
 	_show_start()
 	queue_redraw()
 
 func _process(delta: float) -> void:
+	for i in range(particles.size() - 1, -1, -1):
+		var particle: Dictionary = particles[i]
+		particle["life"] = float(particle["life"]) - delta
+		particle["pos"] = Vector2(particle["pos"]) + Vector2(particle["velocity"]) * delta
+		particle["velocity"] = Vector2(particle["velocity"]) + Vector2(0, 360.0 * delta)
+		if float(particle["life"]) <= 0.0:
+			particles.remove_at(i)
+		else:
+			particles[i] = particle
 	if feedback_timer > 0.0:
 		feedback_timer -= delta
 		if feedback_timer <= 0.0:
@@ -185,6 +199,107 @@ func _build_ui() -> void:
 	result_panel.hide()
 	_update_ui()
 
+func _build_audio() -> void:
+	music_player = AudioStreamPlayer.new()
+	music_player.name = "ArcadeMusic"
+	music_player.volume_db = -13.0
+	add_child(music_player)
+	music_player.stream = _make_music_loop()
+	music_player.play()
+
+	sfx_player = AudioStreamPlayer.new()
+	sfx_player.name = "SoundEffects"
+	sfx_player.volume_db = -3.0
+	add_child(sfx_player)
+	sfx_streams["burger"] = _make_effect([220.0, 330.0, 440.0], 0.075, 0.42)
+	sfx_streams["salad"] = _make_effect([587.33, 783.99, 1046.5], 0.065, 0.34)
+	sfx_streams["lane"] = _make_effect([260.0, 210.0], 0.045, 0.13)
+	sfx_streams["start"] = _make_effect([392.0, 523.25, 659.25], 0.10, 0.28)
+	sfx_streams["win"] = _make_effect([523.25, 659.25, 783.99, 1046.5], 0.13, 0.34)
+	sfx_streams["lose"] = _make_effect([392.0, 329.63, 261.63], 0.16, 0.25)
+
+func _make_music_loop() -> AudioStreamWAV:
+	const RATE := 22050
+	const DURATION := 8.0
+	var frames := int(RATE * DURATION)
+	var data := PackedByteArray()
+	data.resize(frames * 2)
+	var melody := [
+		659.25, 783.99, 880.0, 783.99, 659.25, 523.25, 587.33, 659.25,
+		783.99, 880.0, 987.77, 880.0, 783.99, 659.25, 587.33, 523.25,
+		659.25, 783.99, 880.0, 1046.5, 987.77, 880.0, 783.99, 659.25,
+		587.33, 659.25, 783.99, 880.0, 783.99, 659.25, 587.33, 523.25
+	]
+	var bass := [130.81, 164.81, 110.0, 146.83]
+	for i in range(frames):
+		var t := float(i) / float(RATE)
+		var step := int(t / 0.25) % melody.size()
+		var local_step := fposmod(t, 0.25)
+		var lead_env := minf(1.0, local_step * 45.0) * pow(1.0 - local_step / 0.25, 0.65)
+		var lead_phase := TAU * float(melody[step]) * t
+		var lead := (sin(lead_phase) * 0.78 + sin(lead_phase * 2.0) * 0.22) * 0.105 * lead_env
+		var bass_note := float(bass[int(t / 2.0) % bass.size()])
+		var beat_phase := fposmod(t, 0.5)
+		var bass_env := 0.35 + 0.65 * (1.0 - beat_phase / 0.5)
+		var bass_tone := sin(TAU * bass_note * t) * 0.075 * bass_env
+		var kick := 0.0
+		if beat_phase < 0.12:
+			var kick_env := 1.0 - beat_phase / 0.12
+			var kick_frequency := 105.0 - 45.0 * (beat_phase / 0.12)
+			kick = sin(TAU * kick_frequency * t) * 0.12 * kick_env
+		var sample_value := clampf(lead + bass_tone + kick, -0.85, 0.85)
+		data.encode_s16(i * 2, int(sample_value * 32767.0))
+	var stream := AudioStreamWAV.new()
+	stream.format = AudioStreamWAV.FORMAT_16_BITS
+	stream.mix_rate = RATE
+	stream.stereo = false
+	stream.data = data
+	stream.loop_mode = AudioStreamWAV.LOOP_FORWARD
+	stream.loop_begin = 0
+	stream.loop_end = frames
+	return stream
+
+func _make_effect(notes: Array, note_seconds: float, volume: float) -> AudioStreamWAV:
+	const RATE := 22050
+	var frames := int(float(RATE) * note_seconds * float(notes.size()))
+	var data := PackedByteArray()
+	data.resize(frames * 2)
+	for i in range(frames):
+		var t := float(i) / float(RATE)
+		var note_index := mini(int(t / note_seconds), notes.size() - 1)
+		var local_time := fposmod(t, note_seconds)
+		var envelope := minf(1.0, local_time * 50.0) * (1.0 - local_time / note_seconds)
+		var frequency := float(notes[note_index])
+		var phase := TAU * frequency * t
+		var tone := sin(phase) * 0.82 + sin(phase * 2.02) * 0.18
+		data.encode_s16(i * 2, int(clampf(tone * envelope * volume, -1.0, 1.0) * 32767.0))
+	var stream := AudioStreamWAV.new()
+	stream.format = AudioStreamWAV.FORMAT_16_BITS
+	stream.mix_rate = RATE
+	stream.stereo = false
+	stream.data = data
+	return stream
+
+func _play_sfx(effect_name: String) -> void:
+	if not is_instance_valid(sfx_player) or not sfx_streams.has(effect_name):
+		return
+	sfx_player.stream = sfx_streams[effect_name]
+	sfx_player.play()
+
+func _spawn_particles(color: Color, amount: int) -> void:
+	for i in range(amount):
+		var angle := rng.randf_range(-PI, PI)
+		var speed := rng.randf_range(100.0, 330.0)
+		var life := rng.randf_range(0.32, 0.72)
+		particles.append({
+			"pos": Vector2(player_x, PLAYER_Y - 65.0),
+			"velocity": Vector2(cos(angle), sin(angle)) * speed,
+			"life": life,
+			"max_life": life,
+			"color": color,
+			"size": rng.randf_range(4.0, 9.0)
+		})
+
 func _make_button(caption: String, pos: Vector2, size: Vector2, color: Color) -> Button:
 	var button := Button.new()
 	button.text = caption
@@ -213,6 +328,7 @@ func _show_start() -> void:
 	right_button.disabled = true
 
 func _start_game() -> void:
+	_play_sfx("start")
 	game_started = true
 	game_over = false
 	elapsed = 0.0
@@ -238,7 +354,10 @@ func _start_game() -> void:
 func _change_lane(direction: int) -> void:
 	if not game_started or game_over:
 		return
-	lane = clampi(lane + direction, 0, 2)
+	var next_lane := clampi(lane + direction, 0, 2)
+	if next_lane != lane:
+		lane = next_lane
+		_play_sfx("lane")
 
 func _spawn_food() -> void:
 	var food_lane := rng.randi_range(0, 2)
@@ -251,10 +370,14 @@ func _spawn_food() -> void:
 
 func _collect_food(item: Dictionary) -> void:
 	if item["type"] == "burger":
+		_play_sfx("burger")
+		_spawn_particles(Color("#ffbd55"), 16)
 		burgers += 1
 		body_value = clampf(body_value + 12.0, 0.0, 100.0)
 		feedback = "+ SIZE  🍔"
 	else:
+		_play_sfx("salad")
+		_spawn_particles(Color("#8fe58b"), 16)
 		salads += 1
 		body_value = clampf(body_value - 12.0, 0.0, 100.0)
 		feedback = "SLIMMER  🥗"
@@ -270,8 +393,11 @@ func _finish_level() -> void:
 	var won := difference <= 12.0
 	var shape_text := "SLIM" if target_is_slim else "CURVY"
 	if won:
+		_play_sfx("win")
+		_spawn_particles(Color("#ffe078"), 48)
 		result_label.text = "🏆  YOU WIN!\n\nPerfect match!\nTarget: %s\nYour result: %d%%" % [shape_text, int(body_value)]
 	else:
+		_play_sfx("lose")
 		result_label.text = "🙈  TRY AGAIN!\n\nTarget: %s (%d%%)\nYour result: %d%%\nYou were %d points away." % [shape_text, int(target_value), int(body_value), int(difference)]
 	result_panel.show()
 	_update_ui()
@@ -344,6 +470,11 @@ func _draw() -> void:
 		var x := lerpf(360.0 + (float(lane_index) - 1.0) * 76.7, LANES[lane_index], t)
 		var scale := lerpf(0.48, 1.0, t)
 		_draw_food(Vector2(x, y), str(item["type"]), scale)
+	# Collection sparkles
+	for particle in particles:
+		var particle_color: Color = particle["color"]
+		particle_color.a *= clampf(float(particle["life"]) / float(particle["max_life"]), 0.0, 1.0)
+		draw_circle(Vector2(particle["pos"]), float(particle["size"]), particle_color)
 	# Player shadow and runner
 	if game_started or game_over:
 		draw_ellipse(Vector2(player_x, PLAYER_Y + 62), Vector2(58, 17), Color(0,0,0,0.18))
