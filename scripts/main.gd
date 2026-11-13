@@ -1,605 +1,424 @@
 extends Node2D
 
-const SAVE_PATH := "user://tinyverse_progress.cfg"
-const LANGUAGES := ["EN", "DE", "RU"]
-const WORLD_SIZE := Vector2(1280, 720)
-const PLAYER_SPEED := 245.0
-const RESOURCE_RESPAWN := 18.0
+const VIEW_W := 720.0
+const VIEW_H := 1280.0
+const LANES := [150.0, 360.0, 570.0]
+const PLAYER_Y := 980.0
+const RUN_SPEED := 470.0
+const LEVEL_SECONDS := 32.0
+const FOOD_INTERVAL := 0.82
 
-var language := "RU"
-var stars := 12
-var eggs := 1
-var creature_level := 1
-var has_pet := false
-var pet_hunger := 0
-var player_pos := Vector2(625, 505)
-var move_vector := Vector2.ZERO
-var mood_time := 0.0
-var message := ""
-var message_timer := 0.0
-var flowers_collected := 0
-var crystals_collected := 0
-var quest_index := 0
-var quest_progress := 0
-var mini_game_active := false
-var mini_game_time := 0.0
-var mini_game_score := 0
-var mini_target := Vector2(900, 340)
-var resource_nodes: Array[Dictionary] = []
+var rng := RandomNumberGenerator.new()
+var game_started := false
+var game_over := false
+var elapsed := 0.0
+var spawn_clock := 0.0
+var distance := 0.0
+var lane := 1
+var player_x := 360.0
+var body_value := 50.0
+var target_value := 30.0
+var target_is_slim := true
+var burgers := 0
+var salads := 0
+var foods: Array[Dictionary] = []
+var feedback := ""
+var feedback_timer := 0.0
+var last_touch_x := -1.0
 var ui: CanvasLayer
-var stats_label: Label
-var quest_label: Label
-var message_label: Label
-var action_label: Label
-var language_button: OptionButton
-var move_buttons: Dictionary = {}
-var sfx_player: AudioStreamPlayer
-var music_player: AudioStreamPlayer
-
-var words := {
-	"EN": {
-		"subtitle":"CREATE • EXPLORE • GROW", "stars":"Stars", "eggs":"Eggs", "level":"Lv.",
-		"quest":"TODAY'S QUEST", "move":"MOVE", "collect":"COLLECT", "care":"CARE", "hatch":"HATCH", "game":"STAR CATCH",
-		"welcome":"Welcome home! Explore your island and find something magical.",
-		"flower":"Lovely! You found a magic flower.", "crystal":"A sparkling crystal! Great find.",
-		"nothing":"Nothing nearby. Walk closer to a flower or crystal.",
-		"quest_done":"Quest complete! You earned 5 stars and an egg!",
-		"quest_flowers":"Collect 5 flowers", "quest_crystals":"Find 3 crystals", "quest_care":"Give your friend 3 treats",
-		"need_pet":"Hatch an egg first to meet your new friend!", "fed":"Mimo is happy! Your friend gained experience.",
-		"no_stars":"You need a star for a treat. Complete a quest!",
-		"hatched":"Pop! Meet Mimo, your new magical friend!",
-		"no_eggs":"No eggs yet. Finish a quest to earn one.",
-		"mini_start":"Catch as many stars as you can in 12 seconds! Tap the glowing star!",
-		"mini_win":"Amazing! You caught enough stars. +8 stars!",
-		"mini_end":"Time is up! Try again and beat your score.",
-		"reset":"Progress reset.", "pet":"MIMO", "hunger":"Treats given"
-	},
-	"DE": {
-		"subtitle":"ERSCHAFFEN • ENTDECKEN • WACHSEN", "stars":"Sterne", "eggs":"Eier", "level":"St.",
-		"quest":"TAGESAUFGABE", "move":"BEWEGEN", "collect":"SAMMELN", "care":"PFLEGEN", "hatch":"AUSBRÜTEN", "game":"STERNE FANGEN",
-		"welcome":"Willkommen zu Hause! Erkunde deine Insel und entdecke Magie.",
-		"flower":"Wunderbar! Du hast eine Zauberblume gefunden.", "crystal":"Ein funkelnder Kristall! Gut gemacht.",
-		"nothing":"Hier ist nichts. Geh näher an eine Blume oder einen Kristall.",
-		"quest_done":"Aufgabe geschafft! Du bekommst 5 Sterne und ein Ei!",
-		"quest_flowers":"Sammle 5 Blumen", "quest_crystals":"Finde 3 Kristalle", "quest_care":"Gib deinem Freund 3 Leckerli",
-		"need_pet":"Brüte zuerst ein Ei aus und lerne deinen Freund kennen!", "fed":"Mimo freut sich! Dein Freund hat Erfahrung gesammelt.",
-		"no_stars":"Du brauchst einen Stern für ein Leckerli. Erledige eine Aufgabe!",
-		"hatched":"Plopp! Das ist Mimo, dein neuer Zauberfreund!",
-		"no_eggs":"Keine Eier mehr. Erledige eine Aufgabe, um eins zu verdienen.",
-		"mini_start":"Fange in 12 Sekunden so viele Sterne wie möglich! Tippe auf den leuchtenden Stern!",
-		"mini_win":"Fantastisch! Du bekommst 8 Sterne!", "mini_end":"Die Zeit ist um! Versuch es noch einmal.",
-		"reset":"Fortschritt zurückgesetzt.", "pet":"MIMO", "hunger":"Gefütterte Leckerli"
-	},
-	"RU": {
-		"subtitle":"СОЗДАВАЙ • ИССЛЕДУЙ • РАСТИ", "stars":"Звёзды", "eggs":"Яйца", "level":"Ур.",
-		"quest":"ЗАДАНИЕ ДНЯ", "move":"ДВИЖЕНИЕ", "collect":"СОБРАТЬ", "care":"УХОД", "hatch":"ВЫЛУПИТЬ", "game":"ЛОВИ ЗВЁЗДЫ",
-		"welcome":"Добро пожаловать домой! Исследуй остров и найди волшебство.",
-		"flower":"Здорово! Ты нашёл волшебный цветок.", "crystal":"Сверкающий кристалл! Отличная находка.",
-		"nothing":"Рядом ничего нет. Подойди ближе к цветку или кристаллу.",
-		"quest_done":"Задание выполнено! Ты получил 5 звёзд и яйцо!",
-		"quest_flowers":"Собери 5 цветов", "quest_crystals":"Найди 3 кристалла", "quest_care":"Угости друга 3 раза",
-		"need_pet":"Сначала вылупи яйцо и познакомься с питомцем!", "fed":"Мимо счастлив! Твой друг стал опытнее.",
-		"no_stars":"Нужна звезда для угощения. Выполни задание!",
-		"hatched":"Пуф! Знакомься — это Мимо, твой волшебный друг!",
-		"no_eggs":"Яиц пока нет. Выполни задание, чтобы получить яйцо.",
-		"mini_start":"За 12 секунд поймай как можно больше звёзд! Нажимай на сияющую звезду!",
-		"mini_win":"Потрясающе! Ты получил 8 звёзд!", "mini_end":"Время вышло! Попробуй ещё раз.",
-		"reset":"Прогресс сброшен.", "pet":"МИМО", "hunger":"Угощений дано"
-	}
-}
+var hud_label: Label
+var target_label: Label
+var progress_bar: ProgressBar
+var feedback_label: Label
+var result_panel: PanelContainer
+var result_label: Label
+var start_panel: PanelContainer
+var left_button: Button
+var right_button: Button
+var start_button: Button
+var restart_button: Button
 
 func _ready() -> void:
-	_init_resources()
-	load_progress()
-	_build_audio()
-	build_ui()
-	show_message(tr_word("welcome"), 5.0)
+	rng.randomize()
+	_build_ui()
+	_show_start()
 	queue_redraw()
 
 func _process(delta: float) -> void:
-	mood_time += delta
-	if message_timer > 0.0:
-		message_timer -= delta
-		if message_timer <= 0.0:
-			message = ""
-			update_ui()
-	if mini_game_active:
-		mini_game_time -= delta
-		if mini_game_time <= 0.0:
-			_finish_mini_game()
-	for node in resource_nodes:
-		if not node["active"]:
-			node["timer"] = maxf(0.0, float(node["timer"]) - delta)
-			if node["timer"] <= 0.0:
-				node["active"] = true
-	var direction := move_vector
-	if direction.length() > 1.0:
-		direction = direction.normalized()
-	if not mini_game_active:
-		player_pos += direction * PLAYER_SPEED * delta
-		player_pos.x = clampf(player_pos.x, 115.0, 1165.0)
-		player_pos.y = clampf(player_pos.y, 355.0, 610.0)
+	if feedback_timer > 0.0:
+		feedback_timer -= delta
+		if feedback_timer <= 0.0:
+			feedback = ""
+			_update_ui()
+	if game_started and not game_over:
+		elapsed += delta
+		distance = clampf(elapsed / LEVEL_SECONDS, 0.0, 1.0)
+		spawn_clock += delta
+		while spawn_clock >= FOOD_INTERVAL:
+			spawn_clock -= FOOD_INTERVAL
+			_spawn_food()
+		for i in range(foods.size() - 1, -1, -1):
+			var item := foods[i]
+			item["y"] = float(item["y"]) + RUN_SPEED * delta
+			var item_y := float(item["y"])
+			if item_y >= PLAYER_Y - 30.0 and item_y <= PLAYER_Y + 42.0:
+				if int(item["lane"]) == lane:
+					_collect_food(item)
+					foods.remove_at(i)
+					continue
+			if item_y > VIEW_H + 100.0:
+				foods.remove_at(i)
+			else:
+				foods[i] = item
+		player_x = lerpf(player_x, LANES[lane], minf(1.0, delta * 14.0))
+		if elapsed >= LEVEL_SECONDS:
+			_finish_level()
+		_update_ui()
 	queue_redraw()
 
-func _init_resources() -> void:
-	resource_nodes = [
-		{"kind":"flower","pos":Vector2(300,490),"active":true,"timer":0.0},
-		{"kind":"flower","pos":Vector2(410,555),"active":true,"timer":0.0},
-		{"kind":"flower","pos":Vector2(825,520),"active":true,"timer":0.0},
-		{"kind":"flower","pos":Vector2(1010,560),"active":true,"timer":0.0},
-		{"kind":"flower","pos":Vector2(690,590),"active":true,"timer":0.0},
-		{"kind":"flower","pos":Vector2(205,555),"active":true,"timer":0.0},
-		{"kind":"crystal","pos":Vector2(180,445),"active":true,"timer":0.0},
-		{"kind":"crystal","pos":Vector2(1080,475),"active":true,"timer":0.0},
-		{"kind":"crystal","pos":Vector2(900,600),"active":true,"timer":0.0},
-		{"kind":"crystal","pos":Vector2(520,585),"active":true,"timer":0.0}
-	]
-
-func tr_word(key: String) -> String:
-	return str(words.get(language, words["EN"]).get(key, key))
-
-func build_ui() -> void:
+func _build_ui() -> void:
 	ui = CanvasLayer.new()
 	add_child(ui)
 	var root := Control.new()
 	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	ui.add_child(root)
 
-	var header := PanelContainer.new()
-	header.position = Vector2(22, 16)
-	header.size = Vector2(1236, 88)
-	header.add_theme_stylebox_override("panel", _panel(Color(0.08,0.16,0.29,0.91), 22))
-	root.add_child(header)
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 18)
-	header.add_child(row)
-	var brand := VBoxContainer.new()
-	brand.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	row.add_child(brand)
 	var title := Label.new()
-	title.text = "TINYVERSE"
-	title.add_theme_font_size_override("font_size", 30)
-	title.add_theme_color_override("font_color", Color("#fff1bd"))
-	brand.add_child(title)
-	var subtitle := Label.new()
-	subtitle.text = tr_word("subtitle")
-	subtitle.add_theme_font_size_override("font_size", 12)
-	subtitle.add_theme_color_override("font_color", Color("#b9d9ff"))
-	brand.add_child(subtitle)
-	stats_label = Label.new()
-	stats_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	stats_label.add_theme_font_size_override("font_size", 18)
-	stats_label.add_theme_color_override("font_color", Color.WHITE)
-	row.add_child(stats_label)
-	language_button = OptionButton.new()
-	language_button.add_item("English")
-	language_button.add_item("Deutsch")
-	language_button.add_item("Русский")
-	language_button.item_selected.connect(_on_language_selected)
-	row.add_child(language_button)
+	title.text = "FOOD DASH"
+	title.position = Vector2(24, 26)
+	title.size = Vector2(360, 58)
+	title.add_theme_font_size_override("font_size", 38)
+	title.add_theme_color_override("font_color", Color("#ffffff"))
+	title.add_theme_color_override("font_shadow_color", Color("#643c57"))
+	title.add_theme_constant_override("shadow_offset_x", 3)
+	title.add_theme_constant_override("shadow_offset_y", 4)
+	root.add_child(title)
 
-	var quest_panel := PanelContainer.new()
-	quest_panel.position = Vector2(28, 120)
-	quest_panel.size = Vector2(340, 72)
-	quest_panel.add_theme_stylebox_override("panel", _panel(Color(0.12,0.24,0.35,0.88), 18))
-	root.add_child(quest_panel)
-	quest_label = Label.new()
-	quest_label.add_theme_font_size_override("font_size", 17)
-	quest_label.add_theme_color_override("font_color", Color("#fff4cb"))
-	quest_panel.add_child(quest_label)
+	hud_label = Label.new()
+	hud_label.position = Vector2(28, 92)
+	hud_label.size = Vector2(664, 38)
+	hud_label.add_theme_font_size_override("font_size", 20)
+	hud_label.add_theme_color_override("font_color", Color("#ffffff"))
+	root.add_child(hud_label)
 
-	message_label = Label.new()
-	message_label.position = Vector2(330, 185)
-	message_label.size = Vector2(620, 58)
-	message_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	message_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	message_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	message_label.add_theme_font_size_override("font_size", 20)
-	message_label.add_theme_color_override("font_color", Color("#fff7d6"))
-	message_label.add_theme_color_override("font_shadow_color", Color("#18324b"))
-	message_label.add_theme_constant_override("shadow_offset_x", 2)
-	message_label.add_theme_constant_override("shadow_offset_y", 2)
-	root.add_child(message_label)
+	target_label = Label.new()
+	target_label.position = Vector2(28, 140)
+	target_label.size = Vector2(664, 42)
+	target_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	target_label.add_theme_font_size_override("font_size", 23)
+	target_label.add_theme_color_override("font_color", Color("#fff3b0"))
+	root.add_child(target_label)
 
-	_add_direction_button(root, "up", Vector2(78, 548), "▲", Vector2(64,54))
-	_add_direction_button(root, "left", Vector2(12, 605), "◀", Vector2(64,54))
-	_add_direction_button(root, "down", Vector2(78, 605), "▼", Vector2(64,54))
-	_add_direction_button(root, "right", Vector2(144, 605), "▶", Vector2(64,54))
+	progress_bar = ProgressBar.new()
+	progress_bar.position = Vector2(28, 192)
+	progress_bar.size = Vector2(664, 18)
+	progress_bar.min_value = 0
+	progress_bar.max_value = 100
+	progress_bar.show_percentage = false
+	root.add_child(progress_bar)
 
-	var collect_btn := _make_button(tr_word("collect"), Color("#ffc66d"), Vector2(190,58))
-	collect_btn.position = Vector2(900, 635)
-	collect_btn.pressed.connect(_on_collect)
-	root.add_child(collect_btn)
-	var care_btn := _make_button(tr_word("care"), Color("#b7a1ff"), Vector2(150,58))
-	care_btn.position = Vector2(1098, 635)
-	care_btn.pressed.connect(_on_care)
-	root.add_child(care_btn)
-	var hatch_btn := _make_button(tr_word("hatch"), Color("#ff9fbd"), Vector2(150,58))
-	hatch_btn.position = Vector2(1098, 565)
-	hatch_btn.pressed.connect(_on_hatch)
-	root.add_child(hatch_btn)
-	var game_btn := _make_button(tr_word("game"), Color("#85d9ce"), Vector2(190,58))
-	game_btn.position = Vector2(900, 565)
-	game_btn.pressed.connect(_start_mini_game)
-	root.add_child(game_btn)
-	update_ui()
+	feedback_label = Label.new()
+	feedback_label.position = Vector2(90, 825)
+	feedback_label.size = Vector2(540, 58)
+	feedback_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	feedback_label.add_theme_font_size_override("font_size", 28)
+	feedback_label.add_theme_color_override("font_color", Color("#ffffff"))
+	feedback_label.add_theme_color_override("font_shadow_color", Color("#4d2c48"))
+	feedback_label.add_theme_constant_override("shadow_offset_x", 2)
+	feedback_label.add_theme_constant_override("shadow_offset_y", 3)
+	root.add_child(feedback_label)
 
-func _add_direction_button(root: Control, direction: String, pos: Vector2, caption: String, size: Vector2) -> void:
-	var button := _make_button(caption, Color("#e7f2ff"), size)
-	button.position = pos
-	button.button_down.connect(func(): _set_direction(direction, true))
-	button.button_up.connect(func(): _set_direction(direction, false))
-	root.add_child(button)
-	move_buttons[direction] = button
+	left_button = _make_button("◀  LEFT", Vector2(38, 1100), Vector2(300, 112), Color("#69c7f4"))
+	left_button.pressed.connect(func(): _change_lane(-1))
+	root.add_child(left_button)
+	right_button = _make_button("RIGHT  ▶", Vector2(382, 1100), Vector2(300, 112), Color("#ff9bba"))
+	right_button.pressed.connect(func(): _change_lane(1))
+	root.add_child(right_button)
 
-func _set_direction(direction: String, pressed: bool) -> void:
-	match direction:
-		"up": move_vector.y = -1.0 if pressed else 0.0
-		"down": move_vector.y = 1.0 if pressed else 0.0
-		"left": move_vector.x = -1.0 if pressed else 0.0
-		"right": move_vector.x = 1.0 if pressed else 0.0
+	start_panel = PanelContainer.new()
+	start_panel.position = Vector2(70, 390)
+	start_panel.size = Vector2(580, 390)
+	start_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.15, 0.12, 0.23, 0.96), 30))
+	root.add_child(start_panel)
+	var start_content := VBoxContainer.new()
+	start_content.alignment = BoxContainer.ALIGNMENT_CENTER
+	start_content.add_theme_constant_override("separation", 20)
+	start_panel.add_child(start_content)
+	var intro := Label.new()
+	intro.text = "🍔  BURGER = BIGGER\n🥗  SALAD = SLIMMER\n\nCollect food and match the\ntarget shape at the finish!"
+	intro.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	intro.add_theme_font_size_override("font_size", 27)
+	intro.add_theme_color_override("font_color", Color.WHITE)
+	start_content.add_child(intro)
+	start_button = Button.new()
+	start_button.text = "START RUN"
+	start_button.custom_minimum_size = Vector2(0, 82)
+	start_button.add_theme_font_size_override("font_size", 30)
+	start_button.add_theme_color_override("font_color", Color("#3d2940"))
+	start_button.add_theme_stylebox_override("normal", _panel_style(Color("#ffe078"), 22))
+	start_button.add_theme_stylebox_override("pressed", _panel_style(Color("#f5bd52"), 22))
+	start_button.pressed.connect(_start_game)
+	start_content.add_child(start_button)
 
-func _make_button(caption: String, color: Color, size: Vector2) -> Button:
+	result_panel = PanelContainer.new()
+	result_panel.position = Vector2(70, 390)
+	result_panel.size = Vector2(580, 390)
+	result_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.15, 0.12, 0.23, 0.97), 30))
+	root.add_child(result_panel)
+	var result_content := VBoxContainer.new()
+	result_content.alignment = BoxContainer.ALIGNMENT_CENTER
+	result_content.add_theme_constant_override("separation", 22)
+	result_panel.add_child(result_content)
+	result_label = Label.new()
+	result_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	result_label.add_theme_font_size_override("font_size", 29)
+	result_label.add_theme_color_override("font_color", Color.WHITE)
+	result_content.add_child(result_label)
+	restart_button = Button.new()
+	restart_button.text = "PLAY AGAIN"
+	restart_button.custom_minimum_size = Vector2(0, 82)
+	restart_button.add_theme_font_size_override("font_size", 30)
+	restart_button.add_theme_color_override("font_color", Color("#3d2940"))
+	restart_button.add_theme_stylebox_override("normal", _panel_style(Color("#ffe078"), 22))
+	restart_button.pressed.connect(_start_game)
+	result_content.add_child(restart_button)
+	result_panel.hide()
+	_update_ui()
+
+func _make_button(caption: String, pos: Vector2, size: Vector2, color: Color) -> Button:
 	var button := Button.new()
 	button.text = caption
-	button.custom_minimum_size = size
-	button.add_theme_font_size_override("font_size", 16)
-	button.add_theme_color_override("font_color", Color("#25314a"))
-	button.add_theme_stylebox_override("normal", _panel(color, 17))
-	button.add_theme_stylebox_override("hover", _panel(color.lightened(0.1), 17))
-	button.add_theme_stylebox_override("pressed", _panel(color.darkened(0.12), 17))
+	button.position = pos
+	button.size = size
+	button.add_theme_font_size_override("font_size", 28)
+	button.add_theme_color_override("font_color", Color("#382a43"))
+	button.add_theme_stylebox_override("normal", _panel_style(color, 25))
+	button.add_theme_stylebox_override("pressed", _panel_style(color.darkened(0.14), 25))
 	return button
 
-func _panel(color: Color, radius: int) -> StyleBoxFlat:
+func _panel_style(color: Color, radius: int) -> StyleBoxFlat:
 	var style := StyleBoxFlat.new()
 	style.bg_color = color
 	style.set_corner_radius_all(radius)
-	style.content_margin_left = 12
-	style.content_margin_right = 12
-	style.content_margin_top = 8
-	style.content_margin_bottom = 8
+	style.content_margin_left = 20
+	style.content_margin_right = 20
+	style.content_margin_top = 18
+	style.content_margin_bottom = 18
 	return style
 
-func update_ui() -> void:
-	if not is_instance_valid(stats_label):
+func _show_start() -> void:
+	start_panel.show()
+	result_panel.hide()
+	left_button.disabled = true
+	right_button.disabled = true
+
+func _start_game() -> void:
+	game_started = true
+	game_over = false
+	elapsed = 0.0
+	spawn_clock = 0.0
+	distance = 0.0
+	lane = 1
+	player_x = LANES[lane]
+	body_value = 50.0
+	burgers = 0
+	salads = 0
+	foods.clear()
+	target_is_slim = rng.randf() < 0.5
+	target_value = 28.0 if target_is_slim else 72.0
+	start_panel.hide()
+	result_panel.hide()
+	left_button.disabled = false
+	right_button.disabled = false
+	feedback = "GO!"
+	feedback_timer = 1.0
+	_update_ui()
+	queue_redraw()
+
+func _change_lane(direction: int) -> void:
+	if not game_started or game_over:
 		return
-	stats_label.text = "★ %d %s    ◇ %d %s    %s %d" % [stars, tr_word("stars"), eggs, tr_word("eggs"), tr_word("level"), creature_level]
-	quest_label.text = "%s\n%s  %d/%d" % [tr_word("quest"), _quest_text(), quest_progress, _quest_goal()]
-	message_label.text = message
-	language_button.select(LANGUAGES.find(language))
-	for child in ui.get_children():
-		pass
+	lane = clampi(lane + direction, 0, 2)
 
-func _quest_text() -> String:
-	match quest_index:
-		0: return tr_word("quest_flowers")
-		1: return tr_word("quest_crystals")
-		_: return tr_word("quest_care")
+func _spawn_food() -> void:
+	var food_lane := rng.randi_range(0, 2)
+	var is_burger := rng.randf() < 0.5
+	foods.append({
+		"lane": food_lane,
+		"y": -80.0,
+		"type": "burger" if is_burger else "salad"
+	})
 
-func _quest_goal() -> int:
-	return 5 if quest_index == 0 else (3 if quest_index == 1 else 3)
-
-func _on_language_selected(index: int) -> void:
-	language = LANGUAGES[clampi(index, 0, 2)]
-	update_ui()
-	save_progress()
-
-func _on_collect() -> void:
-	if mini_game_active:
-		return
-	var nearest_index := -1
-	var nearest_distance := 100000.0
-	for i in range(resource_nodes.size()):
-		var node: Dictionary = resource_nodes[i]
-		if not node["active"]:
-			continue
-		var distance: float = player_pos.distance_to(node["pos"])
-		if distance < nearest_distance:
-			nearest_distance = distance
-			nearest_index = i
-	if nearest_index == -1 or nearest_distance > 105.0:
-		show_message(tr_word("nothing"))
-		_play_sfx(190.0, 0.10)
-		return
-	var picked: Dictionary = resource_nodes[nearest_index]
-	picked["active"] = false
-	picked["timer"] = RESOURCE_RESPAWN
-	resource_nodes[nearest_index] = picked
-	if picked["kind"] == "flower":
-		flowers_collected += 1
-		stars += 1
-		show_message(tr_word("flower"))
-		_play_sfx(660.0, 0.14)
-		if quest_index == 0:
-			_add_quest_progress()
+func _collect_food(item: Dictionary) -> void:
+	if item["type"] == "burger":
+		burgers += 1
+		body_value = clampf(body_value + 12.0, 0.0, 100.0)
+		feedback = "+ SIZE  🍔"
 	else:
-		crystals_collected += 1
-		stars += 2
-		show_message(tr_word("crystal"))
-		_play_sfx(880.0, 0.18)
-		if quest_index == 1:
-			_add_quest_progress()
-	save_progress()
-	update_ui()
+		salads += 1
+		body_value = clampf(body_value - 12.0, 0.0, 100.0)
+		feedback = "SLIMMER  🥗"
+	feedback_timer = 0.8
+	_update_ui()
 
-func _add_quest_progress() -> void:
-	quest_progress += 1
-	if quest_progress >= _quest_goal():
-		quest_index = (quest_index + 1) % 3
-		quest_progress = 0
-		stars += 5
-		eggs += 1
-		show_message(tr_word("quest_done"), 4.0)
-		_play_sfx(990.0, 0.28)
-	update_ui()
-
-func _on_care() -> void:
-	if not has_pet:
-		show_message(tr_word("need_pet"))
-		return
-	if stars < 1:
-		show_message(tr_word("no_stars"))
-		return
-	stars -= 1
-	pet_hunger += 1
-	creature_level += 1
-	show_message(tr_word("fed"))
-	_play_sfx(740.0, 0.2)
-	if quest_index == 2:
-		_add_quest_progress()
-	save_progress()
-	update_ui()
-
-func _on_hatch() -> void:
-	if has_pet:
-		show_message(tr_word("hatched"))
-		return
-	if eggs <= 0:
-		show_message(tr_word("no_eggs"))
-		return
-	eggs -= 1
-	has_pet = true
-	creature_level = 1
-	show_message(tr_word("hatched"), 4.0)
-	_play_sfx(520.0, 0.12)
-	save_progress()
-	update_ui()
-
-func _start_mini_game() -> void:
-	if mini_game_active:
-		return
-	mini_game_active = true
-	mini_game_time = 12.0
-	mini_game_score = 0
-	_move_mini_target()
-	show_message(tr_word("mini_start"), 4.0)
-	_play_sfx(520.0, 0.12)
-
-func _move_mini_target() -> void:
-	mini_target = Vector2(randf_range(240.0, 1080.0), randf_range(280.0, 550.0))
-
-func _finish_mini_game() -> void:
-	mini_game_active = false
-	if mini_game_score >= 5:
-		stars += 8
-		show_message(tr_word("mini_win"), 4.0)
-		_play_sfx(1040.0, 0.3)
+func _finish_level() -> void:
+	game_over = true
+	game_started = false
+	left_button.disabled = true
+	right_button.disabled = true
+	var difference := absf(body_value - target_value)
+	var won := difference <= 12.0
+	var shape_text := "SLIM" if target_is_slim else "CURVY"
+	if won:
+		result_label.text = "🏆  YOU WIN!\n\nPerfect match!\nTarget: %s\nYour result: %d%%" % [shape_text, int(body_value)]
 	else:
-		show_message(tr_word("mini_end"), 4.0)
-		_play_sfx(260.0, 0.18)
-	save_progress()
-	update_ui()
+		result_label.text = "🙈  TRY AGAIN!\n\nTarget: %s (%d%%)\nYour result: %d%%\nYou were %d points away." % [shape_text, int(target_value), int(body_value), int(difference)]
+	result_panel.show()
+	_update_ui()
+
+func _update_ui() -> void:
+	if not is_instance_valid(hud_label):
+		return
+	hud_label.text = "🍔 %d     🥗 %d       BODY: %d%%" % [burgers, salads, int(body_value)]
+	target_label.text = "FINISH GOAL:  %s  •  %d%%" % ["SLIM" if target_is_slim else "CURVY", int(target_value)]
+	progress_bar.value = distance * 100.0
+	feedback_label.text = feedback
 
 func _input(event: InputEvent) -> void:
-	if not mini_game_active:
+	if not game_started or game_over:
 		return
-	var point := Vector2.ZERO
-	var pressed := false
 	if event is InputEventScreenTouch:
-		point = event.position
-		pressed = event.pressed
-	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
-		point = event.position
-		pressed = event.pressed
-	if pressed and point.distance_to(mini_target) < 90.0:
-		mini_game_score += 1
-		_play_sfx(820.0 + mini_game_score * 25.0, 0.08)
-		_move_mini_target()
-		show_message("%d / 5" % mini_game_score, 0.8)
-
-func show_message(value: String, duration: float = 2.8) -> void:
-	message = value
-	message_timer = duration
-	update_ui()
-
-func save_progress() -> void:
-	var cfg := ConfigFile.new()
-	cfg.set_value("game", "language", language)
-	cfg.set_value("game", "stars", stars)
-	cfg.set_value("game", "eggs", eggs)
-	cfg.set_value("game", "creature_level", creature_level)
-	cfg.set_value("game", "has_pet", has_pet)
-	cfg.set_value("game", "pet_hunger", pet_hunger)
-	cfg.set_value("game", "flowers_collected", flowers_collected)
-	cfg.set_value("game", "crystals_collected", crystals_collected)
-	cfg.set_value("game", "quest_index", quest_index)
-	cfg.set_value("game", "quest_progress", quest_progress)
-	cfg.save(SAVE_PATH)
-
-func load_progress() -> void:
-	var cfg := ConfigFile.new()
-	if cfg.load(SAVE_PATH) == OK:
-		language = str(cfg.get_value("game", "language", "RU"))
-		stars = int(cfg.get_value("game", "stars", 12))
-		eggs = int(cfg.get_value("game", "eggs", 1))
-		creature_level = int(cfg.get_value("game", "creature_level", 1))
-		has_pet = bool(cfg.get_value("game", "has_pet", false))
-		pet_hunger = int(cfg.get_value("game", "pet_hunger", 0))
-		flowers_collected = int(cfg.get_value("game", "flowers_collected", 0))
-		crystals_collected = int(cfg.get_value("game", "crystals_collected", 0))
-		quest_index = int(cfg.get_value("game", "quest_index", 0))
-		quest_progress = int(cfg.get_value("game", "quest_progress", 0))
-	language = language if LANGUAGES.has(language) else "EN"
-	quest_index = clampi(quest_index, 0, 2)
-
-func _build_audio() -> void:
-	sfx_player = AudioStreamPlayer.new()
-	sfx_player.volume_db = -5.0
-	add_child(sfx_player)
-	music_player = AudioStreamPlayer.new()
-	music_player.volume_db = -24.0
-	add_child(music_player)
-	var music := AudioStreamWAV.new()
-	music.mix_rate = 22050
-	music.format = AudioStreamWAV.FORMAT_16_BITS
-	music.stereo = false
-	music.loop_mode = AudioStreamWAV.LOOP_FORWARD
-	var samples := PackedByteArray()
-	var melody := [261.63,329.63,392.0,329.63,293.66,349.23,440.0,349.23]
-	var sample_count := 22050 * 8
-	samples.resize(sample_count * 2)
-	for i in range(sample_count):
-		var t := float(i) / 22050.0
-		var note: float = float(melody[int(t) % melody.size()])
-		var envelope := 0.5 + 0.5 * sin(PI * fposmod(t, 1.0))
-		var value := sin(TAU * note * t) * 0.11 * envelope + sin(TAU * note * 0.5 * t) * 0.035
-		samples.encode_s16(i * 2, int(clampf(value, -1.0, 1.0) * 32767.0))
-	music.data = samples
-	music_player.stream = music
-	music_player.play()
-
-func _play_sfx(frequency: float, duration: float) -> void:
-	if not is_instance_valid(sfx_player):
-		return
-	var stream := AudioStreamWAV.new()
-	stream.mix_rate = 22050
-	stream.format = AudioStreamWAV.FORMAT_16_BITS
-	stream.stereo = false
-	var count := int(22050.0 * duration)
-	var samples := PackedByteArray()
-	samples.resize(count * 2)
-	for i in range(count):
-		var t := float(i) / 22050.0
-		var envelope := 1.0 - float(i) / maxf(1.0, float(count))
-		var value := sin(TAU * frequency * t) * 0.28 * envelope
-		samples.encode_s16(i * 2, int(value * 32767.0))
-	stream.data = samples
-	sfx_player.stream = stream
-	sfx_player.play()
+		if event.pressed:
+			last_touch_x = event.position.x
+		elif last_touch_x >= 0.0:
+			var dx := event.position.x - last_touch_x
+			if absf(dx) > 45.0:
+				_change_lane(1 if dx > 0.0 else -1)
+			last_touch_x = -1.0
+	elif event is InputEventMouseButton:
+		if event.pressed:
+			last_touch_x = event.position.x
+		elif last_touch_x >= 0.0:
+			var dx := event.position.x - last_touch_x
+			if absf(dx) > 45.0:
+				_change_lane(1 if dx > 0.0 else -1)
+			last_touch_x = -1.0
 
 func _draw() -> void:
-	draw_rect(Rect2(Vector2.ZERO, WORLD_SIZE), Color("#8fd8ff"))
-	draw_circle(Vector2(1080,165), 58, Color("#fff1a8"))
-	for cloud in [Vector2(185,190),Vector2(760,170),Vector2(440,275)]:
-		draw_circle(cloud,27,Color.WHITE)
-		draw_circle(cloud+Vector2(28,5),34,Color.WHITE)
-		draw_circle(cloud+Vector2(60,0),24,Color.WHITE)
-	draw_colored_polygon(PackedVector2Array([Vector2(0,420),Vector2(0,340),Vector2(170,280),Vector2(340,355),Vector2(520,285),Vector2(720,370),Vector2(930,290),Vector2(1280,370),Vector2(1280,520)]),Color("#83cda8"))
-	draw_colored_polygon(PackedVector2Array([Vector2(0,470),Vector2(180,385),Vector2(360,430),Vector2(540,350),Vector2(760,430),Vector2(1010,350),Vector2(1280,430),Vector2(1280,560)]),Color("#63b98f"))
-	draw_rect(Rect2(0,470,1280,250),Color("#48b9d0"))
-	for i in range(12):
-		var x := float(i)*125.0+fposmod(mood_time*18.0,125.0)
-		draw_arc(Vector2(x,555+sin(float(i))*42.0),20,0.2,2.7,20,Color(0.8,0.98,1.0,0.45),3.0)
-	draw_colored_polygon(PackedVector2Array([Vector2(110,510),Vector2(230,430),Vector2(430,390),Vector2(690,405),Vector2(930,445),Vector2(1110,520),Vector2(1030,650),Vector2(260,650)]),Color("#e7c987"))
-	draw_colored_polygon(PackedVector2Array([Vector2(180,500),Vector2(270,445),Vector2(450,420),Vector2(690,430),Vector2(920,465),Vector2(1060,525),Vector2(1000,620),Vector2(280,620)]),Color("#83d77d"))
-	_draw_house()
-	_draw_trees()
-	for node in resource_nodes:
-		if node["active"]:
-			if node["kind"] == "flower":
-				_draw_flower(node["pos"])
-			else:
-				_draw_crystal(node["pos"])
-	if has_pet:
-		_draw_creature(Vector2(705,465))
+	# Bright vertical runner world
+	draw_rect(Rect2(0, 0, VIEW_W, VIEW_H), Color("#a6e8f2"))
+	draw_circle(Vector2(610, 270), 92, Color("#fff1a8"))
+	for i in range(6):
+		var cloud_x := fposmod(float(i) * 151.0 + 40.0, VIEW_W)
+		var cloud_y := 290.0 + float(i % 3) * 72.0
+		draw_circle(Vector2(cloud_x, cloud_y), 30, Color(1, 1, 1, 0.55))
+		draw_circle(Vector2(cloud_x + 30, cloud_y + 8), 25, Color(1, 1, 1, 0.55))
+		draw_circle(Vector2(cloud_x - 25, cloud_y + 12), 22, Color(1, 1, 1, 0.55))
+	# Side scenery
+	draw_rect(Rect2(0, 390, 720, 890), Color("#8bd58d"))
+	for y in range(430, 1250, 170):
+		_draw_tree(28 + (y % 3) * 12, float(y))
+		_draw_tree(690 - (y % 4) * 10, float(y + 55))
+	# Three-lane running path
+	var road := PackedVector2Array([
+		Vector2(245, 255), Vector2(475, 255), Vector2(710, 1280), Vector2(10, 1280)
+	])
+	draw_colored_polygon(road, Color("#e8b5a1"))
+	draw_polyline(PackedVector2Array([Vector2(245,255), Vector2(10,1280)]), Color("#fff0d5"), 8.0)
+	draw_polyline(PackedVector2Array([Vector2(475,255), Vector2(710,1280)]), Color("#fff0d5"), 8.0)
+	# Lane markings scroll down as the runner advances
+	for k in range(2):
+		var x_top := 245.0 + float(k + 1) * 76.7
+		var x_bottom := 10.0 + float(k + 1) * 233.3
+		for j in range(8):
+			var y := fposmod(float(j) * 190.0 + elapsed * RUN_SPEED, 1120.0) + 260.0
+			var t := (y - 255.0) / 1025.0
+			var x := lerpf(x_top, x_bottom, t)
+			var width := lerpf(3.0, 8.0, t)
+			draw_line(Vector2(x, y), Vector2(x, y + lerpf(32.0, 90.0, t)), Color(1,1,1,0.55), width)
+	# Food on the track
+	for item in foods:
+		var y := float(item["y"])
+		var lane_index := int(item["lane"])
+		var t := clampf((y - 255.0) / 1025.0, 0.0, 1.0)
+		var x := lerpf(360.0 + (float(lane_index) - 1.0) * 76.7, LANES[lane_index], t)
+		var scale := lerpf(0.48, 1.0, t)
+		_draw_food(Vector2(x, y), str(item["type"]), scale)
+	# Player shadow and runner
+	if game_started or game_over:
+		draw_ellipse(Vector2(player_x, PLAYER_Y + 62), Vector2(58, 17), Color(0,0,0,0.18))
+		_draw_girl(Vector2(player_x, PLAYER_Y), body_value)
 	else:
-		_draw_egg(Vector2(705,475))
-	_draw_player(player_pos)
-	if mini_game_active:
-		draw_circle(mini_target,43,Color(1.0,0.92,0.35,0.22))
-		_draw_star(mini_target,30,Color("#fff3a6"))
-		_draw_text_center("★ %d     %.1f s" % [mini_game_score,mini_game_time],Vector2(640,270),24,Color.WHITE)
+		_draw_girl(Vector2(360, PLAYER_Y), 50.0)
+	# Finish line
+	if game_started:
+		var remaining := 1.0 - distance
+		if remaining < 0.18:
+			var alpha := (0.18 - remaining) / 0.18
+			draw_rect(Rect2(20, 340, 680, 18), Color(1,1,1,0.85 * alpha))
+			draw_rect(Rect2(20, 358, 680, 18), Color("#4c3d65"))
+			draw_string(ThemeDB.fallback_font, Vector2(270, 330), "FINISH LINE!", HORIZONTAL_ALIGNMENT_LEFT, -1, 24, Color.WHITE)
 
-func _draw_house() -> void:
-	draw_rect(Rect2(475,355,190,145),Color("#fff0d1"))
-	draw_colored_polygon(PackedVector2Array([Vector2(450,365),Vector2(570,270),Vector2(690,365)]),Color("#ee8a79"))
-	draw_rect(Rect2(550,415,48,85),Color("#8b685a"))
-	draw_circle(Vector2(585,460),4,Color("#ffdf75"))
-	draw_rect(Rect2(495,390,42,42),Color("#91d8ff"))
-	draw_line(Vector2(516,390),Vector2(516,432),Color("#fff9e9"),4)
-	draw_line(Vector2(495,411),Vector2(537,411),Color("#fff9e9"),4)
+func _draw_tree(x: float, y: float) -> void:
+	draw_rect(Rect2(x - 7, y, 14, 48), Color("#986346"))
+	draw_circle(Vector2(x, y - 8), 34, Color("#42a86e"))
+	draw_circle(Vector2(x - 18, y + 4), 23, Color("#5cbd78"))
+	draw_circle(Vector2(x + 20, y + 5), 24, Color("#35965f"))
 
-func _draw_trees() -> void:
-	for tree in [Vector2(350,440),Vector2(790,430),Vector2(930,480),Vector2(285,495)]:
-		draw_rect(Rect2(tree.x-7,tree.y,14,55),Color("#9b704d"))
-		draw_circle(tree+Vector2(0,-17),31,Color("#3d9c72"))
-		draw_circle(tree+Vector2(-18,-3),21,Color("#58b77a"))
-		draw_circle(tree+Vector2(18,-3),21,Color("#58b77a"))
+func _draw_food(pos: Vector2, kind: String, scale: float) -> void:
+	var s := scale
+	draw_circle(pos + Vector2(0, 8*s), 39*s, Color(0,0,0,0.18))
+	if kind == "burger":
+		draw_rounded_rect(Rect2(pos.x - 34*s, pos.y - 7*s, 68*s, 20*s), 8*s, Color("#8b4b2d"))
+		draw_rounded_rect(Rect2(pos.x - 36*s, pos.y - 19*s, 72*s, 19*s), 9*s, Color("#f5b94f"))
+		draw_rounded_rect(Rect2(pos.x - 33*s, pos.y - 36*s, 66*s, 23*s), 18*s, Color("#e99a45"))
+		for dot in [Vector2(-14,-27), Vector2(0,-30), Vector2(15,-25)]:
+			draw_circle(pos + dot*s, 2.5*s, Color("#fff0bd"))
+		draw_rect(Rect2(pos.x - 34*s, pos.y - 4*s, 68*s, 5*s), Color("#62a84f"))
+	else:
+		draw_circle(pos, 35*s, Color("#4a9b56"))
+		draw_circle(pos + Vector2(-13,-7)*s, 19*s, Color("#a7df69"))
+		draw_circle(pos + Vector2(13,-11)*s, 17*s, Color("#6ecb6b"))
+		draw_circle(pos + Vector2(3,13)*s, 17*s, Color("#f1df87"))
+		draw_line(pos + Vector2(-5,-22)*s, pos + Vector2(2,20)*s, Color("#fff7c4"), 4*s)
 
-func _draw_flower(p: Vector2) -> void:
-	draw_line(p,p+Vector2(0,15),Color("#438b5d"),3)
-	for i in range(5):
-		var a := TAU*float(i)/5.0
-		draw_circle(p+Vector2(cos(a),sin(a))*9.0,6,Color("#fff2f7"))
-	draw_circle(p,5,Color("#ffcf70"))
-	_draw_star(p+Vector2(0,-22),5,Color("#fff4a5"))
+func _draw_girl(pos: Vector2, size_value: float) -> void:
+	var fullness := lerpf(0.78, 1.34, size_value / 100.0)
+	var bob := sin(elapsed * 11.0) * 5.0 if game_started else 0.0
+	var p := pos + Vector2(0, bob)
+	# legs
+	draw_line(p + Vector2(-12*fullness, 35), p + Vector2(-23, 90), Color("#f3c19e"), 16)
+	draw_line(p + Vector2(12*fullness, 35), p + Vector2(24, 90), Color("#f3c19e"), 16)
+	draw_line(p + Vector2(-23, 90), p + Vector2(-35, 110), Color("#684c76"), 18)
+	draw_line(p + Vector2(24, 90), p + Vector2(36, 110), Color("#684c76"), 18)
+	# dress/body changes width with food
+	draw_rounded_rect(Rect2(p.x - 28*fullness, p.y - 35, 56*fullness, 91), 23, Color("#f06f9a"))
+	draw_rounded_rect(Rect2(p.x - 35*fullness, p.y + 20, 70*fullness, 16), 8, Color("#d95786"))
+	# arms
+	draw_line(p + Vector2(-25*fullness, -20), p + Vector2(-48*fullness, 17), Color("#f3c19e"), 13)
+	draw_line(p + Vector2(25*fullness, -20), p + Vector2(48*fullness, 14), Color("#f3c19e"), 13)
+	# neck and head
+	draw_rect(Rect2(p.x - 9, p.y - 58, 18, 22), Color("#f3c19e"))
+	draw_circle(p + Vector2(0, -88), 39, Color("#f3c19e"))
+	# hair
+	draw_circle(p + Vector2(-5, -111), 38, Color("#5a3549"))
+	draw_circle(p + Vector2(0, -91), 34, Color("#f3c19e"))
+	draw_arc(p + Vector2(0, -88), 38, PI, TAU, 24, Color("#5a3549"), 11)
+	draw_circle(p + Vector2(-13, -91), 3.5, Color("#493341"))
+	draw_circle(p + Vector2(13, -91), 3.5, Color("#493341"))
+	draw_arc(p + Vector2(0, -77), 10, 0.2, PI - 0.2, 16, Color("#a64e68"), 3)
+	draw_circle(p + Vector2(31, -110), 10, Color("#ffc7dc"))
 
-func _draw_crystal(p: Vector2) -> void:
-	draw_colored_polygon(PackedVector2Array([p+Vector2(0,-22),p+Vector2(17,-5),p+Vector2(10,19),p+Vector2(-10,19),p+Vector2(-17,-5)]),Color("#73e6ef"))
-	draw_line(p+Vector2(0,-18),p+Vector2(-5,10),Color("#e4ffff"),3)
-	draw_circle(p+Vector2(0,25),14,Color(0.1,0.3,0.4,0.12))
+func draw_rounded_rect(rect: Rect2, radius: float, color: Color) -> void:
+	draw_rect(rect, color)
+	draw_circle(rect.position + Vector2(radius, radius), radius, color)
+	draw_circle(rect.position + Vector2(rect.size.x-radius, radius), radius, color)
+	draw_circle(rect.position + Vector2(radius, rect.size.y-radius), radius, color)
+	draw_circle(rect.position + rect.size - Vector2(radius, radius), radius, color)
 
-func _draw_egg(center: Vector2) -> void:
-	_draw_ellipse(center+Vector2(0,24),Vector2(34,9),Color(0.12,0.35,0.38,0.2))
-	draw_circle(center,31,Color("#fff4cf"))
-	draw_colored_polygon(PackedVector2Array([center+Vector2(0,-42),center+Vector2(24,-12),center+Vector2(28,18),center+Vector2(0,36),center+Vector2(-28,18),center+Vector2(-24,-12)]),Color("#fff2cf"))
-	draw_circle(center+Vector2(-9,-2),5,Color("#f4a6cf"))
-	draw_circle(center+Vector2(10,9),5,Color("#9b8cff"))
-	_draw_star(center+Vector2(0,-12),7,Color("#ffcb65"))
-
-func _draw_creature(center: Vector2) -> void:
-	var c := center+Vector2(0,sin(mood_time*3.0)*6.0)
-	_draw_ellipse(c+Vector2(0,50),Vector2(52,13),Color(0.12,0.35,0.38,0.2))
-	draw_colored_polygon(PackedVector2Array([c+Vector2(-34,-35),c+Vector2(-48,-78),c+Vector2(-8,-56)]),Color("#aa8cff"))
-	draw_colored_polygon(PackedVector2Array([c+Vector2(34,-35),c+Vector2(48,-78),c+Vector2(8,-56)]),Color("#aa8cff"))
-	draw_circle(c,47,Color("#aa8cff"))
-	draw_circle(c+Vector2(-12,-12),18,Color("#c9b7ff"))
-	draw_circle(c+Vector2(12,-12),18,Color("#c9b7ff"))
-	draw_circle(c+Vector2(-16,3),5,Color("#293653"))
-	draw_circle(c+Vector2(16,3),5,Color("#293653"))
-	draw_arc(c+Vector2(0,12),10,0.2,PI-0.2,16,Color("#573d78"),3)
-	draw_circle(c+Vector2(-29,15),8,Color("#ff9fc0"))
-	draw_circle(c+Vector2(29,15),8,Color("#ff9fc0"))
-	_draw_star(c+Vector2(0,-32),10,Color("#ffe28b"))
-	_draw_text_center("%s %d" % [tr_word("level"),creature_level],c+Vector2(0,78),16,Color.WHITE)
-
-func _draw_player(p: Vector2) -> void:
-	var bob := sin(mood_time*8.0)*2.5 if move_vector.length() > 0.0 else 0.0
-	var c := p+Vector2(0,bob)
-	_draw_ellipse(c+Vector2(0,25),Vector2(20,7),Color(0.12,0.35,0.38,0.2))
-	draw_circle(c+Vector2(0,-7),17,Color("#ffd2a6"))
-	draw_colored_polygon(PackedVector2Array([c+Vector2(-16,-12),c+Vector2(-12,-29),c+Vector2(10,-29),c+Vector2(17,-11)]),Color("#4b5f9e"))
-	draw_rect(Rect2(c+Vector2(-14,8),Vector2(28,28)),Color("#ffb45e"))
-	draw_circle(c+Vector2(-6,-8),2.5,Color("#293653"))
-	draw_circle(c+Vector2(6,-8),2.5,Color("#293653"))
-	draw_arc(c+Vector2(0,-2),5,0.2,PI-0.2,10,Color("#a65c57"),2)
-
-func _draw_ellipse(center: Vector2, radius: Vector2, color: Color) -> void:
+func draw_ellipse(center: Vector2, radius: Vector2, color: Color) -> void:
 	var points := PackedVector2Array()
-	for i in range(32):
-		var a := TAU*float(i)/32.0
-		points.append(center+Vector2(cos(a)*radius.x,sin(a)*radius.y))
-	draw_colored_polygon(points,color)
-
-func _draw_star(center: Vector2, radius: float, color: Color) -> void:
-	var points := PackedVector2Array()
-	for i in range(10):
-		var a := -PI/2.0+float(i)*PI/5.0
-		var r := radius if i%2==0 else radius*0.43
-		points.append(center+Vector2(cos(a),sin(a))*r)
-	draw_colored_polygon(points,color)
-
-func _draw_text_center(value: String, center: Vector2, size: int, color: Color) -> void:
-	var font := ThemeDB.fallback_font
-	var width := font.get_string_size(value,HORIZONTAL_ALIGNMENT_LEFT,-1,size).x
-	draw_string(font,center-Vector2(width/2.0,0),value,HORIZONTAL_ALIGNMENT_LEFT,-1,size,color)
+	for i in range(25):
+		var angle := TAU * float(i) / 24.0
+		points.append(center + Vector2(cos(angle)*radius.x, sin(angle)*radius.y))
+	draw_colored_polygon(points, color)
