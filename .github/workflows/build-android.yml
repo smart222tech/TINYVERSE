@@ -1,5 +1,6 @@
-name: Build TINYVERSE Android APK
-# Android export includes ARMv7, ARM64 and x86_64 ABIs from export_presets.cfg.
+# Build a clean ARM64-only package for modern Samsung phones.
+name: Build FOOD DASH Android APK
+# Android export is ARM64-only to reduce APK size and avoid irrelevant ABIs.
 
 on:
   workflow_dispatch:
@@ -82,16 +83,32 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
-          godot --headless --verbose --path . --export-debug "Android" build/TINYVERSE-debug.apk 2>&1 | tee build/export.log
+          godot --headless --verbose --path . --export-debug "Android" build/FOOD-DASH-arm64.apk 2>&1 | tee build/export.log
           if grep -E "SCRIPT ERROR|Parse Error|Failed to load script" build/export.log; then
             echo "Godot script validation failed; refusing to publish a broken APK."
+            exit 1
+          fi
+
+      - name: Verify APK package, signature and ARM64 payload
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK="build/FOOD-DASH-arm64.apk"
+          test -s "$APK"
+          unzip -t "$APK" >/dev/null
+          "$ANDROID_HOME/build-tools/34.0.0/apksigner" verify --verbose "$APK"
+          "$ANDROID_HOME/build-tools/34.0.0/aapt" dump badging "$APK" | tee build/apk-badging.txt
+          grep -q "package: name='com.smart222tech.fooddash'" build/apk-badging.txt
+          unzip -l "$APK" | grep -q 'lib/arm64-v8a/libgodot_android.so'
+          if unzip -l "$APK" | grep -E 'lib/(armeabi-v7a|x86_64)/libgodot_android.so'; then
+            echo "Unexpected non-ARM64 native library found."
             exit 1
           fi
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: TINYVERSE-Android-debug
-          path: build/TINYVERSE-debug.apk
+          name: FOOD-DASH-Android-ARM64
+          path: build/FOOD-DASH-arm64.apk
           if-no-files-found: error
           retention-days: 14
