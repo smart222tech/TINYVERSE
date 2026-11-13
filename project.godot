@@ -1,4 +1,4 @@
-; TINYVERSE — a cozy magical creature island
+; FOOD DASH — portrait arcade runner
 ; Godot 4.x project
 config_version=5
 
@@ -7,7 +7,7 @@ config/name="FOOD DASH"
 config/description="A colorful portrait food runner."
 run/main_scene="res://scenes/main.tscn"
 config/features=PackedStringArray("4.4", "GL Compatibility")
-config/version="0.1.0"
+config/version="0.2.0"
 
 [display]
 window/size/viewport_width=720
