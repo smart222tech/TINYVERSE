@@ -584,7 +584,7 @@ func _draw_player(p: Vector2) -> void:
 	draw_circle(c+Vector2(6,-8),2.5,Color("#293653"))
 	draw_arc(c+Vector2(0,-2),5,0.2,PI-0.2,10,Color("#a65c57"),2)
 
-func __draw_ellipse(center: Vector2, radius: Vector2, color: Color) -> void:
+func _draw_ellipse(center: Vector2, radius: Vector2, color: Color) -> void:
 	var points := PackedVector2Array()
 	for i in range(32):
 		var a := TAU*float(i)/32.0
