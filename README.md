@@ -1,46 +1,43 @@
 # ASMR FOOD RUN 🍓🎧
 
-A colorful portrait-mode arcade runner built with Godot 4.4+ for Android.
+A portrait-mode arcade runner for Android, built with Godot 4.4+.
 
-**Run, switch lanes, collect food, and enjoy playful arcade sound effects.**
+## Implemented in the current prototype
 
-## Current playable version
+- Portrait layout and three-lane runner gameplay.
+- Large left/right controls and swipe lane switching.
+- Character selection before a run: girl, boy, bunny, panda, monkey, and fox.
+- Character-specific food pools:
+  - People: burgers, salad, apples, strawberries.
+  - Bunny: carrots, lettuce, apples.
+  - Panda: bamboo and apples.
+  - Monkey: bananas, mangoes, strawberries.
+  - Fox: berries, apples, carrots.
+- Simple illustrated food pickups.
+- Background music with an on-screen music on/off button.
+- Sound settings with separate music and effects volume sliders.
+- Synthesized arcade music and short food/action sound effects.
+- Timed rounds, progress indicator, feedback, and result screen.
 
-- Portrait mobile layout (720 × 1280).
-- Three-lane runner with large left and right touch controls.
-- A playable girl character with running animation.
-- Burger and salad pickups that change the character's body-value meter.
-- A short timed run, target goal, progress bar, win/try-again screen.
-- Procedurally generated background music and simple synthesized sound effects.
-- Bright, colorful 2D graphics drawn in Godot.
+## Current limitations
 
-## Planned development
-
-The following features are part of the next development steps and are **not yet implemented**:
-
-- Character selection: girls, boys, animals, and fantasy creatures.
-- Character-specific food preferences and reactions.
-- More food types, fruit, and vegetables.
-- Character-specific eating animations and satisfying ASMR-style bite, crunch, and splash sounds.
-- Music toggle and separate music / sound-effect volume settings.
-- A polished app icon and title screen matching the **ASMR FOOD RUN** identity.
-- More levels, unlockable characters, and progression.
+This is an evolving prototype. Character art is simple procedural 2D drawing, not a finished illustration pack. Food effects are synthesized tones rather than recorded, realistic ASMR recordings. Character-specific eating animations, richer splash and juice particles, unlockable characters, and the final store icon still need further work.
 
 ## Technology
 
 - Godot 4.4+
 - GDScript
-- Android export via GitHub Actions
+- Android export through GitHub Actions
 - Portrait orientation
 
 ## Run locally
 
-Open this repository in Godot 4.4 or newer and run `scenes/main.tscn`.
+Open the project in Godot 4.4 or newer and run `scenes/main.tscn`.
 
 ## Android build
 
-The repository includes an Android export preset and a GitHub Actions workflow. Check the **Actions** tab for build status and installable APK artifacts.
+Open the repository's **Actions** tab and select the latest **Build FOOD DASH Android APK** run. A successful run publishes an ARM64 APK artifact for modern Android phones.
 
 ## Project status
 
-The project is an actively evolving playable prototype. The existing lane-runner gameplay is the foundation; upcoming work will expand characters, food variety, audio, settings, and presentation.
+The existing lane-runner foundation is being expanded into **ASMR FOOD RUN**. The repository name has not been changed yet; that can be done later without interrupting development.
