@@ -41,6 +41,12 @@ var music_player: AudioStreamPlayer
 var sfx_player: AudioStreamPlayer
 var sfx_streams: Dictionary = {}
 var particles: Array[Dictionary] = []
+var character_index := 0
+var character_names := ["GIRL", "BOY", "BUNNY", "PANDA", "MONKEY", "FOX"]
+var character_foods := [["burger","salad","apple","strawberry"],["burger","salad","apple","strawberry"],["carrot","lettuce","apple"],["bamboo","apple"],["banana","mango","strawberry"],["berry","apple","carrot"]]
+var character_button: Button
+var music_button: Button
+var music_enabled := true
 
 func _ready() -> void:
 	rng.randomize()
@@ -100,15 +106,18 @@ func _build_ui() -> void:
 	ui.add_child(root)
 
 	var title := Label.new()
-	title.text = "FOOD DASH"
+	title.text = "ASMR FOOD RUN"
 	title.position = Vector2(24, 26)
-	title.size = Vector2(360, 58)
+	title.size = Vector2(500, 58)
 	title.add_theme_font_size_override("font_size", 38)
 	title.add_theme_color_override("font_color", Color("#ffffff"))
 	title.add_theme_color_override("font_shadow_color", Color("#643c57"))
 	title.add_theme_constant_override("shadow_offset_x", 3)
 	title.add_theme_constant_override("shadow_offset_y", 4)
 	root.add_child(title)
+	music_button = _make_button("♫", Vector2(620, 24), Vector2(78, 58), Color("#ffe078"))
+	music_button.pressed.connect(_toggle_music)
+	root.add_child(music_button)
 
 	hud_label = Label.new()
 	hud_label.position = Vector2(28, 92)
@@ -152,8 +161,8 @@ func _build_ui() -> void:
 	root.add_child(right_button)
 
 	start_panel = PanelContainer.new()
-	start_panel.position = Vector2(70, 390)
-	start_panel.size = Vector2(580, 390)
+	start_panel.position = Vector2(70, 340)
+	start_panel.size = Vector2(580, 500)
 	start_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.15, 0.12, 0.23, 0.96), 30))
 	root.add_child(start_panel)
 	var start_content := VBoxContainer.new()
@@ -161,11 +170,17 @@ func _build_ui() -> void:
 	start_content.add_theme_constant_override("separation", 20)
 	start_panel.add_child(start_content)
 	var intro := Label.new()
-	intro.text = "🍔  BURGER = BIGGER\n🥗  SALAD = SLIMMER\n\nCollect food and match the\ntarget shape at the finish!"
+	intro.text = "CHOOSE YOUR CHARACTER!\nEach hero gets their own food."
 	intro.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	intro.add_theme_font_size_override("font_size", 27)
 	intro.add_theme_color_override("font_color", Color.WHITE)
 	start_content.add_child(intro)
+	character_button = Button.new()
+	character_button.custom_minimum_size = Vector2(0, 70)
+	character_button.text = "GIRL"
+	character_button.add_theme_font_size_override("font_size", 25)
+	character_button.pressed.connect(_next_character)
+	start_content.add_child(character_button)
 	start_button = Button.new()
 	start_button.text = "START RUN"
 	start_button.custom_minimum_size = Vector2(0, 82)
@@ -201,10 +216,26 @@ func _build_ui() -> void:
 	result_panel.hide()
 	_update_ui()
 
+func _toggle_music() -> void:
+	music_enabled = not music_enabled
+	if music_enabled:
+		music_player.play()
+		music_button.text = "♫"
+	else:
+		music_player.stop()
+		music_button.text = "♪"
+	_play_sfx("lane")
+
+func _next_character() -> void:
+	character_index = (character_index + 1) % character_names.size()
+	character_button.text = "◀  " + character_names[character_index] + "  ▶"
+	_play_sfx("lane")
+	queue_redraw()
+
 func _build_audio() -> void:
 	music_player = AudioStreamPlayer.new()
 	music_player.name = "ArcadeMusic"
-	music_player.volume_db = -13.0
+	music_player.volume_db = -19.0
 	add_child(music_player)
 	music_player.stream = _make_music_loop()
 	music_player.play()
@@ -363,12 +394,9 @@ func _change_lane(direction: int) -> void:
 
 func _spawn_food() -> void:
 	var food_lane := rng.randi_range(0, 2)
-	var is_burger := rng.randf() < 0.5
-	foods.append({
-		"lane": food_lane,
-		"y": -80.0,
-		"type": "burger" if is_burger else "salad"
-	})
+	var choices: Array = character_foods[character_index]
+	var food_type: String = str(choices[rng.randi_range(0, choices.size() - 1)])
+	foods.append({"lane": food_lane, "y": -80.0, "type": food_type})
 
 func _collect_food(item: Dictionary) -> void:
 	if item["type"] == "burger":
