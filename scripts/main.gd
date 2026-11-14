@@ -46,6 +46,10 @@ var character_names := ["GIRL", "BOY", "BUNNY", "PANDA", "MONKEY", "FOX"]
 var character_foods := [["burger","salad","apple","strawberry"],["burger","salad","apple","strawberry"],["carrot","lettuce","apple"],["bamboo","apple"],["banana","mango","strawberry"],["berry","apple","carrot"]]
 var character_button: Button
 var music_button: Button
+var settings_button: Button
+var settings_panel: PanelContainer
+var music_slider: HSlider
+var sfx_slider: HSlider
 var music_enabled := true
 
 func _ready() -> void:
@@ -118,6 +122,9 @@ func _build_ui() -> void:
 	music_button = _make_button("♫", Vector2(620, 24), Vector2(78, 58), Color("#ffe078"))
 	music_button.pressed.connect(_toggle_music)
 	root.add_child(music_button)
+	settings_button = _make_button("⚙", Vector2(540, 24), Vector2(70, 58), Color("#c8b7f2"))
+	settings_button.pressed.connect(_toggle_settings)
+	root.add_child(settings_button)
 
 	hud_label = Label.new()
 	hud_label.position = Vector2(28, 92)
@@ -214,7 +221,57 @@ func _build_ui() -> void:
 	restart_button.pressed.connect(_start_game)
 	result_content.add_child(restart_button)
 	result_panel.hide()
+
+	settings_panel = PanelContainer.new()
+	settings_panel.position = Vector2(80, 410)
+	settings_panel.size = Vector2(560, 420)
+	settings_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.15, 0.12, 0.23, 0.98), 26))
+	root.add_child(settings_panel)
+	var settings_box := VBoxContainer.new()
+	settings_box.alignment = BoxContainer.ALIGNMENT_CENTER
+	settings_box.add_theme_constant_override("separation", 12)
+	settings_panel.add_child(settings_box)
+	var settings_title := Label.new()
+	settings_title.text = "SOUND SETTINGS"
+	settings_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	settings_title.add_theme_font_size_override("font_size", 27)
+	settings_title.add_theme_color_override("font_color", Color.WHITE)
+	settings_box.add_child(settings_title)
+	var music_text := Label.new()
+	music_text.text = "MUSIC VOLUME"
+	music_text.add_theme_color_override("font_color", Color.WHITE)
+	settings_box.add_child(music_text)
+	music_slider = HSlider.new()
+	music_slider.min_value = 0
+	music_slider.max_value = 100
+	music_slider.value = 35
+	music_slider.value_changed.connect(_set_music_volume)
+	settings_box.add_child(music_slider)
+	var sfx_text := Label.new()
+	sfx_text.text = "FOOD / ACTION SOUNDS"
+	sfx_text.add_theme_color_override("font_color", Color.WHITE)
+	settings_box.add_child(sfx_text)
+	sfx_slider = HSlider.new()
+	sfx_slider.min_value = 0
+	sfx_slider.max_value = 100
+	sfx_slider.value = 85
+	sfx_slider.value_changed.connect(_set_sfx_volume)
+	settings_box.add_child(sfx_slider)
+	var close_settings := _make_button("CLOSE", Vector2.ZERO, Vector2(0, 62), Color("#ffe078"))
+	close_settings.pressed.connect(_toggle_settings)
+	settings_box.add_child(close_settings)
+	settings_panel.hide()
 	_update_ui()
+
+func _toggle_settings() -> void:
+	settings_panel.visible = not settings_panel.visible
+	_play_sfx("lane")
+
+func _set_music_volume(value: float) -> void:
+	music_player.volume_db = linear_to_db(maxf(value / 100.0, 0.001))
+
+func _set_sfx_volume(value: float) -> void:
+	sfx_player.volume_db = linear_to_db(maxf(value / 100.0, 0.001))
 
 func _toggle_music() -> void:
 	music_enabled = not music_enabled
@@ -356,6 +413,7 @@ func _panel_style(color: Color, radius: int) -> StyleBoxFlat:
 
 func _show_start() -> void:
 	start_panel.show()
+	settings_panel.hide()
 	result_panel.hide()
 	left_button.disabled = true
 	right_button.disabled = true
