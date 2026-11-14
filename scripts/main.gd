@@ -512,9 +512,9 @@ func _draw() -> void:
 	# Player shadow and runner
 	if game_started or game_over:
 		draw_ellipse(Vector2(player_x, PLAYER_Y + 62), Vector2(58, 17), Color(0,0,0,0.18))
-		_draw_girl(Vector2(player_x, PLAYER_Y), body_value)
+		_draw_selected_character(Vector2(player_x, PLAYER_Y), body_value)
 	else:
-		_draw_girl(Vector2(360, PLAYER_Y), 50.0)
+		_draw_selected_character(Vector2(360, PLAYER_Y), 50.0)
 	# Finish line
 	if game_started:
 		var remaining := 1.0 - distance
@@ -559,6 +559,32 @@ func _draw_food(pos: Vector2, kind: String, scale: float) -> void:
 		draw_colored_polygon(PackedVector2Array([pos + Vector2(-34,-28)*s, pos + Vector2(36,-20)*s, pos + Vector2(0,38)*s]), Color("#f5c45e"))
 		draw_circle(pos + Vector2(-10,-9)*s, 6*s, Color("#e65e48"))
 		draw_circle(pos + Vector2(12,-4)*s, 6*s, Color("#e65e48"))
+
+func _draw_selected_character(pos: Vector2, size_value: float) -> void:
+	if character_index < 2:
+		_draw_girl(pos, size_value)
+		return
+	var bob := sin(elapsed * 11.0) * 5.0 if game_started else 0.0
+	var p := pos + Vector2(0, bob)
+	var fur := Color("#f2e5ef")
+	if character_index == 3:
+		fur = Color("#eeeeee")
+	elif character_index == 4:
+		fur = Color("#b97845")
+	elif character_index == 5:
+		fur = Color("#ed8a3b")
+	draw_line(p + Vector2(-15,30), p + Vector2(-24,86), fur, 16)
+	draw_line(p + Vector2(15,30), p + Vector2(24,86), fur, 16)
+	draw_circle(p + Vector2(0,-28), 48, fur)
+	draw_circle(p + Vector2(-30,-68), 19, fur)
+	draw_circle(p + Vector2(30,-68), 19, fur)
+	if character_index == 3:
+		draw_circle(p + Vector2(-17,-30), 13, Color("#25252b"))
+		draw_circle(p + Vector2(17,-30), 13, Color("#25252b"))
+	else:
+		draw_circle(p + Vector2(-16,-30), 4, Color("#302b35"))
+		draw_circle(p + Vector2(16,-30), 4, Color("#302b35"))
+	draw_circle(p + Vector2(0,-14), 7, Color("#4b3540"))
 
 func _draw_girl(pos: Vector2, size_value: float) -> void:
 	var fullness := lerpf(0.78, 1.34, size_value / 100.0)
