@@ -399,18 +399,17 @@ func _spawn_food() -> void:
 	foods.append({"lane": food_lane, "y": -80.0, "type": food_type})
 
 func _collect_food(item: Dictionary) -> void:
-	if item["type"] == "burger":
+	var kind := str(item["type"])
+	if kind in ["burger", "pizza"]:
 		_play_sfx("burger")
-		_spawn_particles(Color("#ffbd55"), 16)
 		burgers += 1
-		body_value = clampf(body_value + 12.0, 0.0, 100.0)
-		feedback = "+ SIZE  🍔"
+		body_value = clampf(body_value + 8.0, 0.0, 100.0)
+		feedback = "YUMMY!  " + _food_icon(kind)
 	else:
 		_play_sfx("salad")
-		_spawn_particles(Color("#8fe58b"), 16)
 		salads += 1
-		body_value = clampf(body_value - 12.0, 0.0, 100.0)
-		feedback = "SLIMMER  🥗"
+		feedback = "CRUNCH!  " + _food_icon(kind)
+	_spawn_particles(Color("#ffbd55") if kind in ["burger", "pizza", "banana", "mango"] else Color("#8fe58b"), 18)
 	feedback_timer = 0.8
 	_update_ui()
 
@@ -431,6 +430,10 @@ func _finish_level() -> void:
 		result_label.text = "🙈  TRY AGAIN!\n\nTarget: %s (%d%%)\nYour result: %d%%\nYou were %d points away." % [shape_text, int(target_value), int(body_value), int(difference)]
 	result_panel.show()
 	_update_ui()
+
+func _food_icon(kind: String) -> String:
+	var icons := {"burger":"🍔","salad":"🥗","apple":"🍎","strawberry":"🍓","pizza":"🍕","carrot":"🥕","lettuce":"🥬","bamboo":"🎋","banana":"🍌","mango":"🥭","berry":"🫐"}
+	return str(icons.get(kind, "✨"))
 
 func _update_ui() -> void:
 	if not is_instance_valid(hud_label):
@@ -537,12 +540,25 @@ func _draw_food(pos: Vector2, kind: String, scale: float) -> void:
 		for dot in [Vector2(-14,-27), Vector2(0,-30), Vector2(15,-25)]:
 			draw_circle(pos + dot*s, 2.5*s, Color("#fff0bd"))
 		draw_rect(Rect2(pos.x - 34*s, pos.y - 4*s, 68*s, 5*s), Color("#62a84f"))
-	else:
+	elif kind in ["salad", "lettuce", "bamboo"]:
 		draw_circle(pos, 35*s, Color("#4a9b56"))
 		draw_circle(pos + Vector2(-13,-7)*s, 19*s, Color("#a7df69"))
 		draw_circle(pos + Vector2(13,-11)*s, 17*s, Color("#6ecb6b"))
 		draw_circle(pos + Vector2(3,13)*s, 17*s, Color("#f1df87"))
-		draw_line(pos + Vector2(-5,-22)*s, pos + Vector2(2,20)*s, Color("#fff7c4"), 4*s)
+		if kind == "bamboo":
+			draw_line(pos + Vector2(-12,24)*s, pos + Vector2(10,-28)*s, Color("#b5dc65"), 8*s)
+	elif kind in ["carrot", "banana", "mango"]:
+		var food_color := Color("#f28b35") if kind == "carrot" else (Color("#ffd84d") if kind == "banana" else Color("#f6a33b"))
+		draw_circle(pos, 30*s, food_color)
+		if kind == "carrot":
+			draw_colored_polygon(PackedVector2Array([pos + Vector2(-18,-20)*s, pos + Vector2(18,-20)*s, pos + Vector2(0,35)*s]), food_color)
+	elif kind in ["apple", "strawberry", "berry"]:
+		draw_circle(pos, 29*s, Color("#ed5263") if kind != "berry" else Color("#6652b8"))
+		draw_line(pos + Vector2(0,-25)*s, pos + Vector2(8,-38)*s, Color("#5da85a"), 5*s)
+	elif kind == "pizza":
+		draw_colored_polygon(PackedVector2Array([pos + Vector2(-34,-28)*s, pos + Vector2(36,-20)*s, pos + Vector2(0,38)*s]), Color("#f5c45e"))
+		draw_circle(pos + Vector2(-10,-9)*s, 6*s, Color("#e65e48"))
+		draw_circle(pos + Vector2(12,-4)*s, 6*s, Color("#e65e48"))
 
 func _draw_girl(pos: Vector2, size_value: float) -> void:
 	var fullness := lerpf(0.78, 1.34, size_value / 100.0)
